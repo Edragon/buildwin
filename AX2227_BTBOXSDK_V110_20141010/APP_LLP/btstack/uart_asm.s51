@@ -1,0 +1,344 @@
+/*****************************************************************************
+* Module    : BTSTACK
+* File      : uart_asm.s5
+* Author    : Hanny
+* Email     : coldney@163.com
+* Function  : Uart发送与接收控制
+*****************************************************************************/
+#include "sfr.h"
+
+    name UART_ASM
+
+
+    RSEG    INTVEC_ASM
+    ljmp    uart1_isr
+
+    #define BT_TX_BUF   0x9F00
+    #define BT_RX_BUF   0x9E00
+    extern bt_uart_txptr
+    extern bt_uart_txlen
+    extern bt_uart_rxptr
+    extern bt_uart_rxlen
+
+    //串口发送数据
+    rseg UART_ASM:CODE:NOROOT(0)
+    public bt_uart_transfering
+    function bt_uart_transfering, 0
+    ;__near_func void bt_uart_transfering(void);
+bt_uart_transfering:
+    mov     a, bt_uart_txlen
+    jnz     ?bt_uart_transfering_next
+    ret                                             //Buffer空
+    ?bt_uart_transfering_next:
+    mov     DPL, bt_uart_txptr
+    mov     DPH, #(BT_TX_BUF >> 8)
+    movx    a, @dptr
+    inc     bt_uart_txptr
+    dec     bt_uart_txlen
+    mov     dptr, #UART1DATA
+    movx    @dptr, a
+    mov     dptr, #UART1CON                         //开中断
+    movx    a, @dptr
+    orl     a, #(1<<3)
+    movx    @dptr, a
+    ret
+
+    //串口接收数据
+bt_uart_receiving macro
+    mov     dptr, #UART1DATA
+    movx    a, @dptr
+    mov     B, a
+    inc     dptr  ;mov     dptr, #UART1STA              //清Pending
+    movx    a, @dptr
+    clr     ACC.3
+    movx    @dptr, a
+    mov     a, bt_uart_rxlen
+
+    //cjne    a, #0xff, ?bt_uart_receiving_next
+    //ret                                             //Buffer满
+    //ljmp    ?uart1_isr_exit
+    //?bt_uart_receiving_next:
+
+    inc     a                                           //Buffer满
+    jz      ?uart1_isr_exit
+
+    mov     DPL, bt_uart_rxptr
+    mov     DPH, #(BT_RX_BUF >> 8)
+    mov     a, B
+    movx    @dptr, a
+    inc     bt_uart_rxptr
+    inc     bt_uart_rxlen
+    //ret
+    endm
+
+    rseg UART_ASM:CODE:NOROOT(0)
+    public uart1_isr
+    function uart1_isr, 0
+uart1_isr:
+    push    PSW
+
+    ;anl     P3DIR, #~(1<<4)
+    ;clr     P3.4
+
+    push    a
+    push    B
+    push    DPCON
+    anl     DPCON, #0xc2
+    push    DPL
+    push    DPH
+    mov     dptr, #UART1STA
+    movx    a, @dptr
+    jnb     ACC.3, ?uart1_isr_trans
+    bt_uart_receiving
+    ?uart1_isr_exit:
+    pop     DPH
+    pop     DPL
+    pop     DPCON
+    pop     B
+    pop     a
+
+    ;setb    P3.4
+
+    pop     PSW
+    reti
+
+    ?uart1_isr_trans:
+    jnb     ACC.2, ?uart1_isr_exit
+    mov     dptr, #UART1CON
+    movx    a, @dptr
+    clr     ACC.3
+    movx    @dptr, a
+    lcall   bt_uart_transfering
+    ljmp    ?uart1_isr_exit
+
+
+    //将数据填入发送FIFO
+    rseg BT_UART_TX_ASM:CODE:NOROOT(0)
+    public bt_uart_txset
+    function bt_uart_txset, 0
+    ;__near_func void bt_uart_txset(void *buf, u8 len);
+bt_uart_txset:
+    //计算发送数据 wptr
+    orl     DPCON, #0x0c
+    push    IE0
+    clr     IE_EA
+    mov     a, bt_uart_txptr
+    add     a, bt_uart_txlen
+    mov     DPL1, a
+    mov     a, bt_uart_txlen
+    add     a, r1
+    mov     r4, a
+    //mov     DPH1, #(BT_TX_BUF >> 8)
+    mov     r0, #(BT_TX_BUF >> 8)
+    pop     a
+    mov     c, ACC.7
+    mov     IE_EA, c
+    mov     DPL, r2
+    mov     DPH, r3
+
+    ?bt_uart_txset_loop:
+    movx    a, @dptr
+    mov     DPH1, r0
+    movx    @dptr, a
+    djnz    r1, ?bt_uart_txset_loop
+
+    mov     bt_uart_txlen, r4                       //最后更新txlen
+    anl     DPCON, #0xc2
+    ret
+
+    rseg BT_UART_RX_ASM:CODE:NOROOT(0)
+    public bt_uart_rxget
+    function bt_uart_rxget, 0
+    ;__near_func u8 bt_uart_rxget(void);
+bt_uart_rxget:
+    //计算获取数据rptr
+    push    IE0
+    clr     IE_EA
+    mov     a, bt_uart_rxptr
+    clr     c
+    subb    a, bt_uart_rxlen
+    mov     DPL, a
+    mov     DPH, #(BT_RX_BUF >> 8)
+    pop     a
+    mov     c, ACC.7
+    mov     IE_EA, c
+    movx    a, @dptr
+    mov     r1, a
+    dec     bt_uart_rxlen
+    ret
+
+    //直接丢弃N个数
+    rseg BT_UART_RX_ASM:CODE:NOROOT(0)
+    public bt_uart_rxskip
+    function bt_uart_rxskip, 0
+    ;__near_func void bt_uart_rxskip(u8 len)
+bt_uart_rxskip:
+    mov     a, r1
+    jz      ?bt_uart_rxskip_end                 //len == 0, exit
+    push    IE0
+    clr     IE_EA
+    clr     c
+    mov     a, bt_uart_rxlen
+    subb    a, r1
+    mov     bt_uart_rxlen, a
+    pop     a
+    mov     c, ACC.7
+    mov     IE_EA, c
+    ?bt_uart_rxskip_end:
+    ret
+
+    //接收多个数据
+    rseg BT_UART_RX_ASM:CODE:NOROOT(0)
+    public bt_uart_getbytes
+    function bt_uart_getbytes, 0
+    ;__near_func void bt_uart_getbytes(void *buf, u8 len)
+bt_uart_getbytes:
+    mov     a, r1
+    jz      ?bt_uart_getbytes_end               //len == 0, exit
+    push    IE0
+    clr     IE_EA
+    mov     a, bt_uart_rxptr
+    clr     c
+    subb    a, bt_uart_rxlen
+    mov     DPL, a
+    mov     DPH, #(BT_RX_BUF >> 8)
+    pop     a
+    mov     c, ACC.7
+    mov     IE_EA, c
+
+    mov     DPL1, r2
+    mov     DPH1, r3
+
+    orl     DPCON, #0x0c
+    ?bt_uart_getbytes_loop:
+    movx    a, @dptr
+    movx    @dptr, a
+    mov     DPH, #(BT_RX_BUF >> 8)
+    dec     bt_uart_rxlen
+    djnz    r1, ?bt_uart_getbytes_loop
+    anl     DPCON, #0xc2
+
+    ?bt_uart_getbytes_end:
+    ret
+
+
+    extern sbc_pcm_wptr
+    rseg BT_UART_RX_ASM:CODE:NOROOT(0)
+    public bt_uart_sco_copy12
+    function bt_uart_sco_copy12, 0
+    ;__near_func void bt_uart_sco_copy12(u8 low, u8 high);
+bt_uart_sco_copy12:
+
+    ORL     DPCON, #0x08
+
+    MOV     DPL, sbc_pcm_wptr+0
+    MOV     DPH, sbc_pcm_wptr+1
+
+    MOV     R0, #12
+
+?bt_uart_sco_copy12_loop:
+    MOV     A, R1           // 0
+    MOVX    @DPTR, A
+    MOV     A, R2
+    MOVX    @DPTR, A
+
+    DJNZ    R0, ?bt_uart_sco_copy12_loop
+
+    MOV     sbc_pcm_wptr+0, DPL
+    MOV     sbc_pcm_wptr+1, DPH
+
+    ANL     DPCON, #0xC2
+
+    RET
+
+/*
+    rseg BT_SCO_SEG:CODE:NOROOT(0)
+    public MUL_xdataS16_u8
+    function MUL_xdataS16_u8, 0
+    ;__near_func s16 MUL_xdataS16_u8(void *inptr, u8 gain);
+MUL_xdataS16_u8:
+    ORL     DPCON, #(1<<1)
+
+    MOV     DPL, R2
+    MOV     DPH, R3
+    db      0xd4, 0x00              ;MOV16 ER0, DPTR0
+
+    mov     ER1H, #0
+    mov     ER1L, R1
+    db      0xd4, 0x9d              ;MUL16S ER0, ER1
+
+    mov     R2, ERABYT1
+    mov     R3, ERABYT2
+
+    ANL     DPCON, #~(1<<1)
+
+    RET
+*/
+    extern  hp_coef
+    extern  hp_temp
+    rseg BT_SCO_SEG:CODE:NOROOT(0)
+    public highpass
+    function highpass, 0
+    ;__near_func s16 highpass(void *inptr, u8 gain);
+highpass:
+    orl     DPCON, #((1<<3) | (1<<1))
+
+    mov     DPL, r2
+    mov     DPH, r3
+    db      0xd4, 0x00              ;MOV16 ER0, DPTR0
+
+    mov     dptr, #hp_temp
+    mov     DPL1, #LOW(hp_coef)
+    mov     DPH1, #HIGH(hp_coef)
+
+    db      0xd4, 0x40              ;CLR ERA
+    db      0xd4, 0x03              ;MOV16 ER1, DPTR1
+    db      0xd4, 0x81              ;MAC16S ER0, ER1 | MOV16S ER0, DPTR0
+    db      0xd4, 0x03              ;MOV16 ER1, DPTR1
+    db      0xd4, 0x81              ;MAC16S ER0, ER1 | MOV16S ER0, DPTR0
+    db      0xd4, 0x03              ;MOV16 ER1, DPTR1
+    db      0xd4, 0x81              ;MAC16S ER0, ER1 | MOV16S ER0, DPTR0
+    db      0xd4, 0x03              ;MOV16 ER1, DPTR1
+    db      0xd4, 0x81              ;MAC16S ER0, ER1 | MOV16S ER0, DPTR0
+    db      0xd4, 0x03              ;MOV16 ER1, DPTR1
+    db      0xd4, 0x81              ;MAC16S ER0, ER1 | MOV16S ER0, DPTR0
+
+    mov     B, #14
+    db      0xd4, 0x57              ;ASHR ERA, B
+    db      0xd4, 0x47              ;SAT16S ER1, ERA
+
+    orl     DPCON, #((1<<5) | (1<<4))   ;AUTO DEC
+    mov     dptr, #(hp_temp+4)
+    mov     DPL1, #LOW(hp_temp+6)
+    mov     DPH1, #HIGH(hp_temp+6)
+
+    db      0xd4, 0x00              ;MOV16 ER0, DPTR0
+    db      0xd4, 0x05              ;MOV16 DPTR1, ER0
+    db      0xd4, 0x07              ;MOV16 DPTR1, ER1
+
+    db      0xd4, 0x00              ;MOV16 ER0, DPTR0，跳过这个 DPTR0 --
+    db      0xd4, 0x00              ;MOV16 ER0, DPTR0
+    db      0xd4, 0x05              ;MOV16 DPTR1, ER0
+    mov     DPL, r2
+    mov     DPH, r3
+    db      0xd4, 0x00              ;MOV16 ER0, DPTR0
+    db      0xd4, 0x05              ;MOV16 DPTR1, ER0
+
+    cjne    r1, #0xff, ?highpass_gain
+    mov     r2, ER1L
+    mov     r3, ER1H
+    sjmp    ?highpass_exit
+    ?highpass_gain:
+
+    mov     ER1L, r1
+    mov     ER1H, #0
+    db      0xd4, 0x9d              ;MUL16S ER0, ER1
+    mov     R2, ERABYT1
+    mov     R3, ERABYT2
+
+    ?highpass_exit:
+    anl     DPCON, #0xc2
+    ret
+
+
+    end

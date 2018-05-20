@@ -1,0 +1,135 @@
+/*******************************************************************************
+ *
+ * Startup code executed before the C/EC++ "main" function is called. The code
+ * is designed to run on any processor based on the 8051 architecture.
+ *
+ * Copyright 2004-2005 IAR Systems. All rights reserved.
+ *
+ * $Revision: 4427 $
+ *
+ ******************************************************************************/
+#define GEN_FUNC_ADDR                         0x000018D4UL
+
+
+	MODULE	 CSTARTUP
+
+    FUNCTION __program_start,0203H
+    PUBLIC   __program_start
+    EXTERN   main
+
+    RSEG CSTART:CODE:NOROOT
+__program_start:
+    LJMP    main
+	ENDMOD __program_start
+
+
+    rseg BANKED_CODE_SWITCH:CODE:ROOT
+    //Bank Call
+    public  ?BCALL
+?BCALL:
+    clr     a
+    jmp     @a+dptr
+
+    public  ?BRET
+?BRET:
+    ret
+
+;----------------------------------------------------------------;
+; Virtual registers						 ;
+; =================						 ;
+; Below is some segment needed for the IAR ICC C/EC++ compiler   ;
+;								 ;
+; BREG  : A segment for 8 bit registers for use by the compiler. ;
+;         ?B0 is the first register.                             ;
+; VREG  : Segement that holds up to 32 virtual registers for     ;
+;         use by the compiler. ?V0 is the first register.        ;
+; PSP   : Segment containing the PDATA stack pointer (?PSP)      ;
+; XSP   : Segment containing the XDATA stack pointer (?XSP)      ;
+; 								 ;
+;----------------------------------------------------------------;
+; NOTE: The XLINK varialbe _NR_OF_VIRTUAL_REGISTERS must be 	 ;
+;       defined to set the size for the VREG segment.   	 ;
+;----------------------------------------------------------------;
+
+	MODULE  VIRTUAL_REGISTERS
+	PUBLIC  ?B0
+	PUBLIC  ?V0
+	PUBLIC  ?PSP
+	PUBLIC  ?XSP
+	RSEG    BREG:BIT:NOROOT
+
+?B0:
+	DS      8
+
+  	RSEG    VREG:DATA:NOROOT
+	EXTERN	_NR_OF_VIRTUAL_REGISTERS
+?V0:
+	DS      0
+
+	RSEG    PSP:DATA:NOROOT
+	EXTERN  ?RESET_PSP
+	REQUIRE	?RESET_PSP
+?PSP:
+	DS      1
+
+	RSEG    XSP:DATA:NOROOT
+	EXTERN  ?RESET_XSP
+	REQUIRE	?RESET_XSP
+?XSP:
+	DS      2
+
+	ENDMOD ; VIRTUAL_REGISTERS
+
+
+
+;----------------------------------------------------------------;
+; Register banks						 ;
+; =================						 ;
+; Below is some segment needed for the IAR ICC C/EC++ compiler   ;
+;								 ;
+; The register banks will only be included if the #pragma        ;
+; register_bank is used for the corresponding register bank      ;
+; 								 ;
+;----------------------------------------------------------------;
+
+	MODULE	REGISTER_BANK0
+	PUBLIC	__REG_BANK_0
+	ASEGN	__REG_BANK0:DATA,0x00
+
+__REG_BANK_0:
+	DS	8
+	ENDMOD
+
+
+	MODULE	REGISTER_BANK1
+	PUBLIC	__REG_BANK_1
+	ASEGN	__REG_BANK1:DATA,0x08
+__REG_BANK_1:
+	DS	8
+	ENDMOD
+
+
+	MODULE	REGISTER_BANK2
+	PUBLIC	__REG_BANK_2
+	ASEGN	__REG_BANK2:DATA,0x10
+__REG_BANK_2:
+	DS	8
+	ENDMOD
+
+
+	MODULE	REGISTER_BANK3
+	PUBLIC	__REG_BANK_3
+	ASEGN	__REG_BANK3:DATA,0x18
+__REG_BANK_3:
+	DS	8
+	ENDMOD	; REGISTER_BANK3
+
+
+    END
+
+
+
+
+
+
+

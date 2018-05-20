@@ -1,0 +1,128 @@
+/*****************************************************************************
+ * Module    : XCL
+ * File      : APP_BASE.xcl
+ * Author    : Hanny
+ * Email     : coldney@yahoo.com.cn
+ * Function  : 基础空间的分配。应用开发时，请勿随意修改该文件的内容。
+ *****************************************************************************/
+
+
+-D_IDATA_START=0x80            // First address of IDATA memory.
+-D_IDATA_END=0xFF              // Last address of Idata memory (0xFF for 8052 and 0x7F for 8051)
+
+-D_PDATA_START=0x0F01          // First address for PDATA memory.
+-D_PDATA_END=0x0FFF            // Last address for PDATA memory.
+
+-D_IXDATA_START=0x003A00       // First address of on chip XDATA memory.
+-D_IXDATA_END=0x003CCF         // Last address of on chip XDATA memory.
+
+-D_XDATA_START=0x003A00        // First address of xdata memory.
+-D_XDATA_END=0x003CCF          // Last address of xdata memory.
+
+-D_CODE_START=0x000000         // First address for code.
+-D_CODE_END=0x000011FF         // Last address for code.
+
+
+-D_FIRST_BANK_ADDR=0x10000
+-D_NR_OF_BANKS=0x10
+
+-D?REGISTER_BANK=0             // Default register bank (0,1,2,3).
+-D_REGISTER_BANK_START=0       // Start address for default register bank (00,08,10,18).
+
+
+-D_BREG_START=0x00             // The bit address where the BREG segments starts.
+                               // Must be placed on: _BREG_START%8=0 where _BREG_START <= 0x78.
+-D?VB=0x20                     // ?VB is used when referencing BREG as whole byte.
+                               // Must be placed on: ?VB=0x20+_BREG_START/8
+
+-D?PBANK_NUMBER=0	           // high byte of 16-bit address to the PDATA area
+-D?PBANK=0xA0                  // Most significant byte in MOVX A,@R0. (0xA0 is sfr P2)
+-D?PBANK_EXT=0xEA              // Most significant byte in MOVX A,@R0. (0xEA is for Dallas DS80C390)
+
+-D?ESP=9B                      // ESP Extended Stack Pointer
+
+
+/*****************************************************************************
+ * Section   : DATA/IDATA空间分段，请勿随意改动
+ *****************************************************************************/
+-Z(BIT)BREG=_BREG_START
+-Z(BIT)SDK_BIT=20-7F
+-Z(BIT)BIT_N=20-7F
+-Z(BIT)RES_BIT=78-79
+
+-Z(DATA)REGISTERS+8=_REGISTER_BANK_START
+-Z(DATA)BDATA_Z,BDATA_N,BDATA_I=20-2F
+-Z(DATA)VREG+_NR_OF_VIRTUAL_REGISTERS=30-7F
+-Z(DATA)PSP,XSP=08-7F
+-Z(DATA)DATA_I,DATA_Z,DATA_N=6c-7f
+
+-Z(DATA)UART_DATA=0x78
+-Z(DATA)BANK_DATA=0x7d
+-Z(DATA)MBANK_DATA=0x7e-0x7f
+
+-Z(DATA)WAV_DATA_NEW=0x1048     //跟mp3_data_var复用
+
+-U(IDATA)0-7F=(DATA)0-7F
+-Z(IDATA)IDATA_I,IDATA_Z,IDATA_N=_IDATA_START-_IDATA_END
+-Z(IDATA)ISTACK+_IDATA_STACK_SIZE#_IDATA_START-_IDATA_END
+-Z(IDATA)IOVERLAY=_IDATA_START-_IDATA_END
+
+
+/*****************************************************************************
+ * Section   : CODE空间分段，请勿随意改动
+ *****************************************************************************/
+//公共区
+-Z(CODE)INTVEC=0-0x6A
+-Z(CODE)INTVEC_ASM=0x6B-0x6D
+-Z(CODE)BANKED_CODE_SWITCH_RET=0x100
+-Z(CODE)BANKED_CODE_SWITCH=0x110
+-P(CODE)BIT_ID,BDATA_ID,DATA_ID,IDATA_ID,IXDATA_ID,PDATA_ID,XDATA_ID=_CODE_START-_CODE_END
+-P(CODE)RCODE,CODE_C=_CODE_START-_CODE_END
+-Z(CODE)BANK_SWITCH=_CODE_START-_CODE_END
+-Z(CODE)NEAR_CODE,SYS_ASM,IR_TABLE,IR_SEG=_CODE_START-_CODE_END
+-Z(CODE)COMMON_DEV_SEG,USB_COM_SEG,SD_COM_SEG,SPI_COM_SEG,SCAN_COM=_CODE_START-_CODE_END
+
+//OTP程序空间
+-Z(CODE)VECTOR_FUNC=0x2000-0x3FEF
+
+//OTP与MASKROM程序空间
+-Z(CODE)DECRAM_BANK,DECRAM_SEG,DECRAM_CONST,USB_ASM,RAM_MASS_SEG=0x834000-0x8357FF
+-Z(CODE)LOUD_SPEAKER_COM,ABS_MEAN_COM,ADC_FADE_COM,IIR_HP_COM=0x824000-0x8247FF
+
+//MASKROM常量
+-Z(CODE)M_CONSTANT=0xC00000-0xC0FFFF
+
+
+/*****************************************************************************
+ * Section   : XDATA空间分段
+ *****************************************************************************/
+-Z(XDATA)PDATA_N,PDATA_Z,PDATA_I=_PDATA_START-_PDATA_END
+-Z(XDATA)IXDATA_N,IXDATA_Z,IXDATA_I=_IXDATA_START-_IXDATA_END
+-Z(XDATA)XDATA_N,XDATA_Z,XDATA_I=_XDATA_START-_XDATA_END
+-Z(XDATA)EXT_STACK+_EXTENDED_STACK_SIZE=_EXTENDED_STACK_START-_EXTENDED_STACK_END
+
+
+/*****************************************************************************
+ * Section   : XDATA固定分段，请勿随意改动
+ *****************************************************************************/
+-Z(XDATA)SPI_PARAM_DATA=0x2800-0x28FF
+-Z(XDATA)FAT_WIN_BUF=0x2900-0x2AFF
+-Z(XDATA)FFT_BUF=0x2B00-0x2B7F
+-Z(XDATA)MP3_DEC_BUF=0x2E00-0x3807
+-Z(XDATA)MP3EN_HUFF_BUF=0x22608-0x22687
+-Z(XDATA)MP3EN_XDATA=0x22389-0x22600
+-Z(XDATA)MP3EN_ADC_BUF=0x22C80-0x239FF
+-Z(XDATA)LCD_BUFF=0x12800-0x12BFF
+-Z(XDATA)LRC_LABEL_BUF,FAT_TEMP_BUF=0x3808-0x39FF
+-Z(XDATA)LRC_READ_BUF=0x22A00-0x22BFF
+
+-Z(XDATA)USB_DEV_XDATA=0x406000-0x406FFF
+
+
+
+-R
+-cx51
+-f APP_LLP.xcl
+//-f Debug\Exe\hexscript.hs
+llp_lib.r51
+btlib.r51

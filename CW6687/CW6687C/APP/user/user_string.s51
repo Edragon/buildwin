@@ -1,0 +1,177 @@
+/*****************************************************************************
+ * Module    : User
+ * File      : user_string.c
+ * Author    : Hanny
+ * Function  : 在菜单中用到的字符串
+ *****************************************************************************/
+    name STRING
+stringdef macro string_name, text
+    public string_name
+    function string_name, 0
+string_name:
+    db      text
+    endm
+
+llp_define macro llp_name, zh_name, en_name, zh_str, en_str
+    public llp_name
+    function llp_name, 0
+llp_name:
+    db      (zh_name)
+    db      ((zh_name) >> 8)
+    db      (en_name)
+    db      ((en_name) >> 8)
+//    db      (zh_name-llp_name)
+//    db      ((zh_name-llp_name) >> 8)
+//    db      (en_name-llp_name-2)
+//    db      ((en_name-llp_name-2) >> 8)
+
+    public zh_name
+    function zh_name, 0
+zh_name:
+    db      zh_str
+
+    public en_name
+    function en_name, 0
+en_name:
+    db      en_str
+    endm
+
+#define llp_def(llp_name, zh_str, en_str)\
+    llp_define llp_name, zh_ ## llp_name, en_ ## llp_name, zh_str, en_str
+
+    rseg STRING_SEG:CODE:ROOT
+    //系统设置菜单
+    llp_def(llp_menu_system,        "系统设置",     "System Settings")
+    llp_def(llp_menu_language,      "语言选择",     "Language")
+    llp_def(llp_menu_contrast,      "对比调节",     "Contrast")
+    llp_def(llp_menu_backlight,     "背光时间",     "BackLight Time")
+    llp_def(llp_menu_autopower,     "定时关机",     "Auto Power")
+    llp_def(llp_menu_playmode,      "播放模式",     "PlayMode")
+    llp_def(llp_menu_firmware,      "固件版本",     "Firmware Version")
+    llp_def(llp_menu_factory,       "出厂设置",     "Factory Settings")
+
+    //语言选择菜单
+    llp_def(llp_language_set,       "语言选择",     "Language")
+    llp_def(llp_language_zh,        "中文",         "中文")
+    llp_def(llp_language_en,        "English",      "English")
+
+    //背光时间选择
+    llp_def(llp_backlight_set,      "背光时间",     "BackLight Time")
+    llp_def(llp_backlight_always,   "背光常亮",     "Light Always")
+    llp_def(llp_backlight_5s,       "延时5秒",      "5 Second")
+    llp_def(llp_backlight_10s,      "延时10秒",     "10 Second")
+    llp_def(llp_backlight_15s,      "延时15秒",     "15 Second")
+    llp_def(llp_backlight_20s,      "延时20秒",     "20 Second")
+    llp_def(llp_backlight_off,      "背光关闭",     "Light Off")
+
+    //定时关机选择菜单
+    llp_def(llp_autopower_set,      "定时关机",     "Auto Power")
+    llp_def(llp_autopower_off,      "关闭定时关机", "Disable")
+    llp_def(llp_autopower_15m,      "延时15分钟",   "15 Minutes")
+    llp_def(llp_autopower_30m,      "延时30分钟",   "30 Minutes")
+    llp_def(llp_autopower_45m,      "延时45分钟",   "45 Minutes")
+    llp_def(llp_autopower_60m,      "延时60分钟",   "60 Minutes")
+
+    //播放模式选择菜单
+    llp_def(llp_playmode_set,       "播放模式",     "Play Mode")
+    llp_def(llp_playmode_all,       "全部循环",     "All")
+    llp_def(llp_playmode_folder,    "目录循环",     "Folder")
+    llp_def(llp_playmode_single,    "单曲循环",     "Single")
+
+    //对话框标题
+    llp_def(llp_msg_title,          "提  示",       "Notice")
+    llp_def(llp_msg_ok,             "确定",         " OK")
+    llp_def(llp_msg_cancel,         "取消",         "Cancel")
+
+    //主菜单
+    llp_def(llp_main_repeater,      "学  习  机 ",  "Repeater")
+    llp_def(llp_main_tape,          "磁  带  机 ",  "Tape")
+    llp_def(llp_main_recorder,      "录  音  机",   "Recorder")
+    llp_def(llp_main_voice,         "录音播放",     "Voice")
+    llp_def(llp_main_fm,            "收 音 机",     "Radio")
+    llp_def(llp_main_cardreader,    "读  卡  器",   "CardReader")
+    llp_def(llp_main_setting,       "系统设置",     "Settings")
+    llp_def(llp_main_ebook,         "电 子 书",     "EBook")
+    llp_def(llp_main_clock,         "电 子 钟",     "Clock")
+    llp_def(llp_main_nav,           "文件管理",     "FileExplorer")
+
+    //录音控制
+    llp_def(llp_record_set,         "录音设置",     "RecordSet")
+    llp_def(llp_record_low,         "长时录音",     "Simple Record")
+    llp_def(llp_record_mid,         "优质录音",     "Quality Record")
+    llp_def(llp_record_high,        "特级录音",     "Super Record")
+
+    //进度条
+    llp_def(llp_volume_set,         "音 量",        "Volume")
+
+    rseg STRING_SEG_2:CODE:ROOT
+
+    //对话框提示
+    llp_def(llp_firmware_version,   "固件版本：v1.0.0",
+            "Version: v1.0.0")
+    llp_def(llp_update_fw_confirm,  "是否升级固件版本？",
+            "update firmware ?")
+    llp_def(llp_factory_confirm,    "确定要恢复出厂设置吗？",
+            "Are you sure to restore the factory settings?")
+    llp_def(llp_factory_success,    "成功恢复出厂设置",
+            "Restore factory settings successfully")
+    llp_def(llp_disconnected_pc,    "未连接到电脑",
+            "Disconnected to PC")
+    llp_def(llp_usb_device_error,    "USB设备错误",
+            "USB device error")
+    llp_def(llp_no_device,          "未插入存储设备",
+            "Can not find device")
+    llp_def(llp_invalid_fat,        "无效的文件系统",
+            "Unsupported file system")
+    llp_def(llp_write_disable,      "无法写入存储设备",
+            "Can not write to the device")
+    llp_def(llp_no_music,           "未找到音乐文件",
+            "Can not find music")
+    llp_def(llp_no_voice,           "未找到录音文件",
+            "Can not find record")
+    llp_def(llp_no_ebook,           "未找到文本文件",
+            "Can not find TXT file")
+    llp_def(llp_delete_confirm,     "确定要删除该文件吗？",
+            "Are you sure to delete this file?")
+    llp_def(llp_delete_fail,        "删除失败",
+            "Delete fail")
+    llp_def(llp_waiting,            "请稍侯...",
+            "Waiting...")
+    llp_def(llp_no_tape,            "磁带机未按下",
+            "The tape is not ready")
+    llp_def(llp_recording,          "转录中...",
+            "Record...")
+    llp_def(llp_fm_error,           "FM模块发生错误",
+            "FM module error!")
+    llp_def(llp_updatefile_error,   "升级文件打开错误",
+            "Update code file open error!")
+    llp_def(llp_power_off,          "已关机",
+            "Power off")
+
+
+    //收音机界面
+    llp_def(llp_fm_channel,         "频道",         "  CH")
+    llp_def(llp_fm_total,           "总数",         "Total")
+
+    //时钟设置
+    llp_def(llp_time_set,           "时间设置",     "Time set")
+    llp_def(llp_alarm_set,          "闹钟设置",     "Alarm set")
+    llp_def(llp_alarm_on,           "闹铃开启",     "Alarm on")
+    llp_def(llp_alarm_off,          "闹铃关闭",     "Alarm off")
+    llp_def(llp_alarm_cycle,        "闹钟周期",     "Ararm cycle")
+    llp_def(llp_alarm_cyc_7D,       "每天",         "Every day")
+    llp_def(llp_alarm_cyc_5D,       "周一至周五",   "Weekday")
+    llp_def(llp_sunday,             "星期日",       "Sunday")
+    llp_def(llp_monday,             "星期一",       "Monday")
+    llp_def(llp_tuesday,            "星期二",       "Tuesday")
+    llp_def(llp_wednesday,          "星期三",       "Wednesday")
+    llp_def(llp_thursday,           "星期四",       "Thursday")
+    llp_def(llp_friday,             "星期五",       "Friday")
+    llp_def(llp_saturday,           "星期六",       "Saturday")
+
+    //闹钟
+    llp_def(llp_alarm_delay_confirm,"闹铃时间",    "Alarm time")
+    llp_def(llp_alarm_msg_ok,       "重响",        "rering")
+    llp_def(llp_alarm_msg_cancel,   "关闭",        "close")
+
+    end
